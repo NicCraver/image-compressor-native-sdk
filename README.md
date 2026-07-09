@@ -1,5 +1,9 @@
 # Compressor (Native SDK)
 
+<p align="center">
+  <img src="assets/icon.png" alt="Compressor app icon" width="160" height="160" />
+</p>
+
 Full **native** desktop image compressor — no WebView, no React, no browser UI.
 
 - UI: `src/app.native` (Native markup)
