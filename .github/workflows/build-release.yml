@@ -7,6 +7,12 @@
 #
 # 依赖：Zig 0.16、Bun（压缩/预览脚本运行时）、@native-sdk/cli。
 #
+# 关键：@native-sdk/cli 必须本地安装（npm install，不加 -g），而非全局安装。
+#   windows-latest 把工作区放在 D:\，而 npm 全局目录在 C:\，全局安装会让
+#   native 生成的 .native/build/build.zig.zon 把 native_sdk 依赖路径写成
+#   跨盘的绝对路径，被 Zig 0.16 拒绝（"expected path relative to build root;
+#   found absolute path"）。本地安装使 framework 与项目同盘，生成相对路径。
+#
 # 已知限制（详见 packaging/RUNTIME-README.md）：
 #   - 压缩/预览依赖 Bun + scripts/，未签名包需从含 scripts/ 的目录启动。
 #   - Windows 上中文会显示为方框（待随包注册 CJK 字体解决）。
@@ -40,8 +46,12 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install Native SDK CLI
-        run: npm install -g @native-sdk/cli
+      - name: Install Native SDK CLI (local)
+        # 本地安装：framework 与项目同盘，生成相对依赖路径
+        run: npm install @native-sdk/cli
+
+      - name: Put local bin on PATH
+        run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Show tool versions
         run: |
@@ -96,8 +106,14 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install Native SDK CLI
-        run: npm install -g @native-sdk/cli
+      - name: Install Native SDK CLI (local)
+        # 本地安装：framework 与项目同盘 (D:\)，生成相对依赖路径，
+        # 避免全局安装 (C:\) 导致的跨盘绝对路径被 Zig 拒绝。
+        run: npm install @native-sdk/cli
+
+      - name: Put local bin on PATH
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value "$PWD\node_modules\.bin"
 
       - name: Show tool versions
         run: |

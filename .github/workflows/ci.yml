@@ -19,8 +19,13 @@ jobs:
         with:
           version: 0.16.0
       - uses: oven-sh/setup-bun@v2
-      - name: Install Native SDK CLI
-        run: npm install -g @native-sdk/cli
+      # 本地安装而非全局：windows-latest 工作区在 D:\、npm 全局在 C:\，
+      # 全局安装会让 native 生成的 build.zig.zon 依赖路径跨盘变绝对，被 Zig 拒绝。
+      - name: Install Native SDK CLI (local)
+        run: npm install @native-sdk/cli
+      - name: Put local bin on PATH
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value "$PWD\node_modules\.bin"
       - name: Markup + unit tests
         run: |
           native check
