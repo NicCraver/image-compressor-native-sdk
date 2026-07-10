@@ -43,8 +43,8 @@ test "empty state shows drop prompt and compress disabled path" {
     defer arena_state.deinit();
     var model = main.initialModel();
     const tree = try buildTree(arena_state.allocator(), &model);
-    _ = try expectByText(tree.root, .text, "Drop an image here");
-    _ = try expectByText(tree.root, .button, "Compress");
+    _ = try expectByText(tree.root, .text, "将图片拖到这里");
+    _ = try expectByText(tree.root, .button, "压缩");
     try testing.expect(model.busyOrNoFile());
     try testing.expectEqual(@as(u8, 80), model.quality);
 }
@@ -77,7 +77,7 @@ test "selected file view shows file name" {
     model.setPath("/home/me/shot.jpg");
     const tree = try buildTree(arena_state.allocator(), &model);
     _ = try expectByText(tree.root, .text, "shot.jpg");
-    _ = try expectByText(tree.root, .button, "Choose another image");
+    _ = try expectByText(tree.root, .button, "选择其他图片");
 }
 
 test "layout sweep at designed window size" {

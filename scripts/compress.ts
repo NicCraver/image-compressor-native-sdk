@@ -99,19 +99,19 @@ async function main() {
 
   const ext = extensionOf(inputPath);
   if (ext && !IMAGE_EXT.has(ext)) {
-    console.error(`Unsupported image extension: ${ext}`);
+    console.error(`不支持的图片扩展名：${ext}`);
     process.exit(2);
   }
 
   const inputFile = Bun.file(inputPath);
   if (!(await inputFile.exists())) {
-    console.error(`Input file not found: ${inputPath}`);
+    console.error(`找不到输入文件：${inputPath}`);
     process.exit(2);
   }
 
   const inputBytes = inputFile.size;
   if (inputBytes === 0) {
-    console.error(`Input file is empty: ${inputPath}`);
+    console.error(`输入文件为空：${inputPath}`);
     process.exit(2);
   }
 
@@ -122,13 +122,13 @@ async function main() {
       .write(outputPath);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`Failed to convert image: ${message}`);
+    console.error(`图片转换失败：${message}`);
     process.exit(3);
   }
 
   const outputFile = Bun.file(outputPath);
   if (!(await outputFile.exists()) || outputFile.size === 0) {
-    console.error("WebP output was not written");
+    console.error("未生成 WebP 输出文件");
     process.exit(3);
   }
 

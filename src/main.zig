@@ -203,7 +203,52 @@ pub const Model = struct {
     }
 
     pub fn compressLabel(model: *const Model) []const u8 {
-        return if (model.busy) "Working…" else "Compress";
+        return if (model.busy) "处理中…" else "压缩";
+    }
+
+    // —— 静态界面文案：通过 {绑定} 暴露给 app.native，经 macOS CoreText 回退渲染中文。
+    //   这些是字面量字符串，但不进入 markup 字面量校验，故不触发 tofu guard。
+    pub fn appTitle(_: *const Model) []const u8 {
+        return "压缩器";
+    }
+    pub fn settingsLabel(_: *const Model) []const u8 {
+        return "设置";
+    }
+    pub fn qualityLabel(_: *const Model) []const u8 {
+        return "质量";
+    }
+    pub fn sliderLabel(_: *const Model) []const u8 {
+        return "压缩质量";
+    }
+    pub fn qualityHint(_: *const Model) []const u8 {
+        return "默认 80%。数值越高保留的细节越多，文件也越大。";
+    }
+    pub fn panelLabel(_: *const Model) []const u8 {
+        return "拖入图片或点击浏览";
+    }
+    pub fn previewAlt(_: *const Model) []const u8 {
+        return "已选图片预览";
+    }
+    pub fn imgAlt(_: *const Model) []const u8 {
+        return "图片";
+    }
+    pub fn clearLabel(_: *const Model) []const u8 {
+        return "选择其他图片";
+    }
+    pub fn dropHereLabel(_: *const Model) []const u8 {
+        return "将图片拖到这里";
+    }
+    pub fn orBrowseLabel(_: *const Model) []const u8 {
+        return "或点击浏览";
+    }
+    pub fn presetLightLabel(_: *const Model) []const u8 {
+        return "轻量";
+    }
+    pub fn presetMediumLabel(_: *const Model) []const u8 {
+        return "中等";
+    }
+    pub fn presetHeavyLabel(_: *const Model) []const u8 {
+        return "重度";
     }
 
     pub fn presetLight(model: *const Model) bool {
@@ -230,10 +275,10 @@ pub const Model = struct {
     }
 
     pub fn statusLabel(model: *const Model) []const u8 {
-        if (model.busy) return "Compressing…";
-        if (model.has_result) return "Saved";
-        if (model.path_len > 0) return "Ready";
-        return "Drop or browse an image";
+        if (model.busy) return "压缩中…";
+        if (model.has_result) return "已保存";
+        if (model.path_len > 0) return "就绪";
+        return "拖入或浏览图片";
     }
 
     pub fn setPath(model: *Model, path: []const u8) void {
@@ -253,7 +298,7 @@ pub const Model = struct {
         model.output_bytes = 0;
         model.preview_image = 0;
         model.clearError();
-        model.setStatus("Image selected");
+        model.setStatus("已选择图片");
     }
 
     fn clearFile(model: *Model) void {
@@ -384,15 +429,15 @@ pub fn update(model: *Model, msg: Msg, fx: *Effects) void {
         .toggle_settings => model.settings_open = !model.settings_open,
         .set_preset_light => {
             model.quality = 90;
-            model.setStatus("Quality set to 90% (Light)");
+            model.setStatus("质量设为 90%（轻量）");
         },
         .set_preset_medium => {
             model.quality = 80;
-            model.setStatus("Quality set to 80% (Medium)");
+            model.setStatus("质量设为 80%（中等）");
         },
         .set_preset_heavy => {
             model.quality = 50;
-            model.setStatus("Quality set to 50% (Heavy)");
+            model.setStatus("质量设为 50%（重度）");
         },
         .quality_changed => {
             // Value mirrored by Options.sync from the live slider widget.
@@ -480,7 +525,7 @@ fn isImagePath(path: []const u8) bool {
 fn handleFilesDropped(model: *Model, fx: *Effects, dropped: DroppedPaths) void {
     if (model.busy) return;
     if (dropped.count == 0) {
-        model.setStatus("Drop cancelled");
+        model.setStatus("已取消拖入");
         return;
     }
     var i: usize = 0;
@@ -488,20 +533,20 @@ fn handleFilesDropped(model: *Model, fx: *Effects, dropped: DroppedPaths) void {
         const path = dropped.pathAt(i);
         if (path.len == 0) continue;
         if (!isImagePath(path)) {
-            model.setError("Drop an image file (.jpg, .png, .webp, …)");
-            model.setStatus("Unsupported file type");
+            model.setError("请拖入图片文件（.jpg、.png、.webp……）");
+            model.setStatus("不支持的文件类型");
             return;
         }
         selectPath(model, fx, path);
         return;
     }
-    model.setStatus("Drop cancelled");
+    model.setStatus("已取消拖入");
 }
 
 fn startBrowse(model: *Model, fx: *Effects) void {
     if (model.busy) return;
     model.clearError();
-    model.setStatus("Opening file picker…");
+    model.setStatus("正在打开文件选择器…");
     // Platform file dialogs print a single path on stdout.
     const argv = if (builtin.os.tag == .windows) [_][]const u8{
         "powershell",
@@ -511,7 +556,7 @@ fn startBrowse(model: *Model, fx: *Effects) void {
     } else if (builtin.os.tag == .macos) [_][]const u8{
         "osascript",
         "-e",
-        "POSIX path of (choose file with prompt \"Choose an image\" of type {\"public.image\"})",
+        "POSIX path of (choose file with prompt \"选择图片\" of type {\"public.image\"})",
     } else [_][]const u8{
         "/bin/sh",
         "-c",
@@ -527,12 +572,12 @@ fn startBrowse(model: *Model, fx: *Effects) void {
 
 fn handleBrowseExit(model: *Model, fx: *Effects, exit: native_sdk.EffectExit) void {
     if (exit.reason != .exited or exit.code != 0) {
-        model.setStatus("Browse cancelled");
+        model.setStatus("已取消浏览");
         return;
     }
     const path = firstLine(exit.output);
     if (path.len == 0) {
-        model.setStatus("Browse cancelled");
+        model.setStatus("已取消浏览");
         return;
     }
     selectPath(model, fx, path);
@@ -542,12 +587,12 @@ fn startCompress(model: *Model, fx: *Effects) void {
     if (model.busy or model.path_len == 0) return;
     model.busy = true;
     model.clearError();
-    model.setStatus("Compressing with Bun…");
+    model.setStatus("正在用 Bun 压缩…");
 
     var out_buf: [max_path_bytes]u8 = undefined;
     const out_path = defaultOutputPath(model.pathText(), &out_buf) catch {
         model.busy = false;
-        model.setError("Could not build output path");
+        model.setError("无法生成输出路径");
         return;
     };
     model.setOutput(out_path);
@@ -584,9 +629,9 @@ fn handleCompressExit(model: *Model, exit: native_sdk.EffectExit) void {
         } else if (exit.output.len > 0) {
             model.setError(firstLine(exit.output));
         } else {
-            model.setError("Compression failed");
+            model.setError("压缩失败");
         }
-        model.setStatus("Failed");
+        model.setStatus("失败");
         return;
     }
     const line = firstLine(exit.output);
@@ -594,7 +639,7 @@ fn handleCompressExit(model: *Model, exit: native_sdk.EffectExit) void {
     model.input_bytes = parseJsonU64(line, "inputBytes") orelse 0;
     model.output_bytes = parseJsonU64(line, "outputBytes") orelse 0;
     model.has_result = true;
-    model.setStatus("Done");
+    model.setStatus("完成");
     model.clearError();
 }
 
@@ -719,8 +764,8 @@ pub fn main(init: std.process.Init) !void {
     app_state.model = initialModel();
 
     try runner.runWithOptions(wrapAppWithFileDrops(app_state), .{
-        .app_name = "Compressor",
-        .window_title = "Compressor",
+        .app_name = "压缩器",
+        .window_title = "压缩器",
         .bundle_id = "com.sonny.image-compressor",
         .icon_path = "assets/icon.png",
         .default_frame = geometry.RectF.init(0, 0, window_width, window_height),

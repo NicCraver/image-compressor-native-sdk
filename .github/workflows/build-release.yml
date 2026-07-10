@@ -1,0 +1,172 @@
+# 打包 macOS 与 Windows 桌面应用，并上传构建产物 / 按标签发布 Release。
+#
+# 触发：
+#   - push 到 main、任意 PR：构建并跑测试，上传 artifact（供下载试用）
+#   - push tag v*：额外创建 GitHub Release 并附上 mac / win 包
+#   - Actions 页面可手动触发 (workflow_dispatch)
+#
+# 依赖：Zig 0.16、Bun（压缩/预览脚本运行时）、@native-sdk/cli。
+#
+# 已知限制（详见 packaging/RUNTIME-README.md）：
+#   - 压缩/预览依赖 Bun + scripts/，未签名包需从含 scripts/ 的目录启动。
+#   - Windows 上中文会显示为方框（待随包注册 CJK 字体解决）。
+name: build-release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+# 同分支新推送取消旧运行，省 CI 额度
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────────── macOS (arm64) ─────────────────────────────
+  build-macos:
+    name: Build · macOS (arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Zig 0.16
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Native SDK CLI
+        run: npm install -g @native-sdk/cli
+
+      - name: Show tool versions
+        run: |
+          zig version
+          bun --version
+          native --version
+
+      - name: Markup + unit tests
+        run: |
+          native check
+          native test
+
+      - name: Bun compress tests
+        run: bun test scripts/compress.test.ts
+
+      - name: Build (ReleaseFast, native arm64)
+        run: native build
+
+      - name: Package (.app bundle)
+        run: native package --target macos --binary zig-out/bin/image-compressor
+
+      - name: Bundle scripts + runtime README
+        run: |
+          # scripts/ 随包附带，供 Bun 运行时调用（压缩/预览）
+          cp -R scripts "zig-out/package/image-compressor.app/Contents/Resources/scripts"
+          cp packaging/RUNTIME-README.md "zig-out/package/image-compressor.app/Contents/Resources/README.md"
+
+      - name: Zip .app (preserve bundle)
+        run: |
+          cd zig-out/package
+          ditto -c -k --keepParent image-compressor.app "$GITHUB_WORKSPACE/image-compressor-macos-arm64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-compressor-macos-arm64
+          path: image-compressor-macos-arm64.zip
+          if-no-files-found: error
+
+  # ───────────────────────────── Windows (x64) ─────────────────────────────
+  build-windows:
+    name: Build · Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Zig 0.16
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Native SDK CLI
+        run: npm install -g @native-sdk/cli
+
+      - name: Show tool versions
+        run: |
+          zig version
+          bun --version
+          native --version
+
+      - name: Markup + unit tests
+        run: |
+          native check
+          native test
+
+      - name: Bun compress tests
+        run: bun test scripts/compress.test.ts
+
+      - name: Build (ReleaseFast, native x64)
+        run: native build
+
+      - name: Package (windows artifact dir)
+        run: native package-windows --binary zig-out/bin/image-compressor.exe
+
+      - name: Bundle scripts + runtime README
+        shell: pwsh
+        run: |
+          # scripts/ 放到 exe 同级 bin\scripts，便于从 bin\ 启动时被 Bun 找到
+          Copy-Item -Recurse scripts zig-out/package/windows/bin/scripts
+          Copy-Item packaging/RUNTIME-README.md zig-out/package/windows/README.md
+
+      - name: Zip package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path zig-out/package/windows/* -DestinationPath image-compressor-windows-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-compressor-windows-x64
+          path: image-compressor-windows-x64.zip
+          if-no-files-found: error
+
+  # ───────────────────────────── Release（仅 tag 触发）─────────────────────────────
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f -name '*.zip' -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            release/image-compressor-macos-arm64.zip \
+            release/image-compressor-windows-x64.zip \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file packaging/RUNTIME-README.md \
+            --verify-tag

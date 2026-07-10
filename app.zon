@@ -1,8 +1,8 @@
 .{
     .id = "com.sonny.image-compressor",
     .name = "image-compressor",
-    .display_name = "Compressor",
-    .description = "Convert any image to WebP with adjustable quality.",
+    .display_name = "压缩器",
+    .description = "将任意图片转换为 WebP，质量可调。",
     .version = "0.1.0",
     .icons = .{ "assets/icon.png", "assets/icon.ico" },
     .platforms = .{"windows"},
@@ -17,7 +17,7 @@
         .windows = .{
             .{
                 .label = "main",
-                .title = "Compressor",
+                .title = "压缩器",
                 .width = 480,
                 .height = 640,
                 .min_width = 420,

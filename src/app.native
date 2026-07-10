@@ -1,15 +1,17 @@
 <!-- Full native compressor UI. Hot-reloaded by native dev. -->
+<!-- 所有可见中文均通过 {绑定} 由 main.zig 动态返回，经 macOS CoreText 回退渲染；
+     字面量保持 ASCII 以通过 bundled 字体 (Geist) 的 tofu guard 编译期校验。 -->
 <column grow="1" padding="14" gap="10" background="background">
   <!-- Caption drag row: pads around OS caption buttons (Windows: trailing) -->
   <row gap="8" cross="center" window-drag="true" height="{chrome_top}">
     <spacer width="{chrome_leading}" />
-    <text grow="1">Compressor</text>
+    <text grow="1">{appTitle}</text>
     <spacer width="{chrome_trailing}" />
   </row>
 
   <!-- Action row: settings + compress, below the caption controls -->
   <row gap="10" cross="center">
-    <button size="sm" variant="ghost" icon="settings" label="Settings" on-press="toggle_settings" />
+    <button size="sm" variant="ghost" icon="settings" label="{settingsLabel}" on-press="toggle_settings" />
     <spacer grow="1" />
     <button
       size="sm"
@@ -24,13 +26,11 @@
   <if test="{settings_open}">
     <column gap="8" padding="12" background="surface" radius="md">
       <row cross="center" gap="8">
-        <text grow="1">Quality</text>
+        <text grow="1">{qualityLabel}</text>
         <text foreground="accent">{qualityPercent}</text>
       </row>
-      <slider value="{qualityFraction}" on-change="quality_changed" label="Compression quality" />
-      <text foreground="text_muted" wrap="true">
-        Default 80%. Higher keeps more detail and a larger file.
-      </text>
+      <slider value="{qualityFraction}" on-change="quality_changed" label="{sliderLabel}" />
+      <text foreground="text_muted" wrap="true">{qualityHint}</text>
     </column>
   </if>
 
@@ -41,25 +41,25 @@
     background="surface_subtle"
     radius="lg"
     on-press="browse"
-    label="Drop an image or click to browse"
+    label="{panelLabel}"
   >
     <column grow="1" main="center" cross="center" gap="10">
       <if test="{hasFile}">
         <column gap="8" cross="center">
-          <avatar image="{preview_image}" size="lg" width="96" height="96" label="Selected image preview">IMG</avatar>
+          <avatar image="{preview_image}" size="lg" width="96" height="96" label="{previewAlt}">{imgAlt}</avatar>
           <text>{fileName}</text>
           <text foreground="text_muted" wrap="true">{pathText}</text>
           <if test="{hasResult}">
             <text>{resultLine}</text>
             <text foreground="text_muted">{outputName}</text>
           </if>
-          <button size="sm" variant="ghost" on-press="clear">Choose another image</button>
+          <button size="sm" variant="ghost" on-press="clear">{clearLabel}</button>
         </column>
       </if>
       <else>
         <icon name="file-text" width="36" height="36" foreground="text_muted" />
-        <text>Drop an image here</text>
-        <text foreground="text_muted">or click to browse</text>
+        <text>{dropHereLabel}</text>
+        <text foreground="text_muted">{orBrowseLabel}</text>
         <text foreground="text_muted">.jpg, .png, .webp, .gif, .bmp, .tif, .heic, .avif</text>
       </else>
     </column>
@@ -74,9 +74,9 @@
 
   <!-- Quality presets -->
   <row gap="6" main="space_between">
-    <button size="sm" grow="1" selected="{presetLight}" on-press="set_preset_light">Light</button>
-    <button size="sm" grow="1" selected="{presetMedium}" on-press="set_preset_medium">Medium</button>
-    <button size="sm" grow="1" selected="{presetHeavy}" on-press="set_preset_heavy">Heavy</button>
+    <button size="sm" grow="1" selected="{presetLight}" on-press="set_preset_light">{presetLightLabel}</button>
+    <button size="sm" grow="1" selected="{presetMedium}" on-press="set_preset_medium">{presetMediumLabel}</button>
+    <button size="sm" grow="1" selected="{presetHeavy}" on-press="set_preset_heavy">{presetHeavyLabel}</button>
   </row>
 
   <!-- Footer status: soft pill instead of a heavy full-bleed bar -->
